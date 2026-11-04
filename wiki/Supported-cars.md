@@ -12,6 +12,7 @@ the parts that change the car's own apps stay off, and the app says which.
 | Hyundai Ioniq 5 | Canada | 260206 | 325 of 325 hook points found in stock files; waiting for a check on a car |
 | Hyundai Ioniq 5 (all trims, incl. SE) | USA | 260507 | 325 of 325 hook points found in stock files, same files as 3 Car Reports; waiting for a check on a car |
 | Hyundai Ioniq 5 (2023 on) | USA | 260903 | made on 4 cars by HMG-API's own mapper (325 of 325 hook points); waiting for a check on a car |
+| Kia Niro Hybrid (DE PE) | Korea | 260902 | ✅ checked on a car (342 of 343 hook points; the split-screen editor's one isn't there) |
 
 **Your car isn't listed, or says "waiting"?** Install HMG-API and make a
 [Car Report](Car-Report): HMG-API maps your car from its own software on the spot,
@@ -22,5 +23,7 @@ and the report is everything needed to add it. You can also try that map yoursel
 has an older version, update it first (the manufacturer's update site or the dealer).
 
 **Not supported:** head units without navigation ("Display Audio") are a different
-system. No Korean car has been confirmed working so far (the units checked had no
-Wi-Fi hardware); reports are welcome.
+system. Most Korean units checked so far had no Wi-Fi hardware. The Korean Niro Hybrid
+above has a Wi-Fi chip (it only shows up once Wi-Fi has been switched on); wireless
+CarPlay has worked on it, but its hotspot doesn't start by itself yet. Reports are
+welcome.

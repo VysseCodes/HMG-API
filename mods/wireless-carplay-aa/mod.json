@@ -31,6 +31,13 @@
       "features": [
         "hmgapi.wifi"
       ]
+    },
+    {
+      "model": [
+        "DEPEHEV"
+      ],
+      "region": "KOR",
+      "firmware": "260902"
     }
   ],
   "parts": [
