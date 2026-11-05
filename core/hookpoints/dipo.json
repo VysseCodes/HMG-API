@@ -93,6 +93,41 @@
       "about": "sends iAP2 bytes to the phone over the CarPlay session's channel (0: sent)"
     },
     {
+      "id": "dipo.carplay.decode_failure",
+      "kind": "method",
+      "of": "dipo.carplay",
+      "find": {
+        "name": "onNotifyDecodeFailure",
+        "params": [
+          "int"
+        ],
+        "ret": "void"
+      },
+      "about": "the CarPlay video decoder reported a failure (1 no output frame, 2 sequence header failed, 3 black screen; 0 resets the black-screen count). Stock DiPO only logs it"
+    },
+    {
+      "id": "dipo.carplay.screen_timeout",
+      "kind": "method",
+      "of": "dipo.carplay",
+      "find": {
+        "name": "onScreenTimeout",
+        "params": [],
+        "ret": "void"
+      },
+      "about": "the CarPlay screen stream got no data for the library's timeout (10 s on these units). Stock DiPO only sets a flag"
+    },
+    {
+      "id": "dipo.carplay.force_key_frame",
+      "kind": "method",
+      "of": "dipo.carplay",
+      "find": {
+        "name": "forceKeyFrame",
+        "params": [],
+        "ret": "com.daudio.app.dipo.telechips.CarPlayReturn"
+      },
+      "about": "asks the phone for a new key frame (IDR) on the CarPlay screen stream. Stock DiPO never calls it"
+    },
+    {
       "id": "dipo.iap2_listener",
       "kind": "class",
       "find": {

@@ -13,15 +13,15 @@ use one. A point a car's map lacks is off on that car, and the HMG-API app says 
 How points are described and found: [core/hookpoints/README.md](../core/hookpoints/README.md).
 Need one that isn't here? Open a "New hook point" issue.
 
-343 hook points. **Cars** (`maps/`):
+346 hook points. **Cars** (`maps/`):
 
 | Car | Map | Points |
 |---|---|---|
-| Hyundai Ioniq 5 CAN 260206 | mapped from stock files | 343 of 343 |
-| Hyundai Ioniq 5 USA 260507 | mapped from stock files | 343 of 343 |
-| Hyundai Ioniq 5 USA 260903 | mapped on cars by HMG-API's own mapper | 325 of 343 |
-| Kia EV6 CAN 260206 | mapped from stock files | 343 of 343 |
-| Kia EV6 USA 260507 | checked on a car | 343 of 343 |
+| Hyundai Ioniq 5 CAN 260206 | mapped from stock files | 346 of 346 |
+| Hyundai Ioniq 5 USA 260507 | mapped from stock files | 346 of 346 |
+| Hyundai Ioniq 5 USA 260903 | mapped on cars by HMG-API's own mapper | 328 of 346 |
+| Kia EV6 CAN 260206 | mapped from stock files | 346 of 346 |
+| Kia EV6 USA 260507 | checked on a car | 346 of 346 |
 
 In the tables, **Cars** is "all" when every car above has the point, otherwise the cars without it.
 
@@ -299,6 +299,9 @@ App `com.daudio.app.dipo`.
 | `dipo.carplay.session_finalized` | method | `onSessionFinalized(int)` → void | a CarPlay session ended | all |
 | `dipo.carplay.iap_message` | method | `oniAPSendMessage(byte[], int)` → void | iAP2 bytes the phone sent over the CarPlay session's own channel | all |
 | `dipo.carplay.native_iap_send` | method | `TccCarPlayNativeMethod_iAPSendMessage(byte[], int)` → int | sends iAP2 bytes to the phone over the CarPlay session's channel (0: sent) | all |
+| `dipo.carplay.decode_failure` | method | `onNotifyDecodeFailure(int)` → void | the CarPlay video decoder reported a failure (1 no output frame, 2 sequence header failed, 3 black screen; 0 resets the black-screen count). Stock DiPO only logs it | all |
+| `dipo.carplay.screen_timeout` | method | `onScreenTimeout()` → void | the CarPlay screen stream got no data for the library's timeout (10 s on these units). Stock DiPO only sets a flag | all |
+| `dipo.carplay.force_key_frame` | method | `forceKeyFrame()` → com.daudio.app.dipo.telechips.CarPlayReturn | asks the phone for a new key frame (IDR) on the CarPlay screen stream. Stock DiPO never calls it | all |
 | `dipo.iap2_listener` | class | a class in `com.daudio.app.dipo` (no fixed name) | DiPO's own iAP2 listener (connected, disconnected, notify from the iAP2 server) | all |
 | `dipo.iap2_listener.connected` | method | `connected(int, String)` → void | an iAP2 session is up (component: 1 USB, 4 Bluetooth CarPlay, 5 the CarPlay session's channel) | all |
 | `dipo.iap2_listener.disconnected` | method | `disconnected(int)` → void | an iAP2 session ended (component) | all |
