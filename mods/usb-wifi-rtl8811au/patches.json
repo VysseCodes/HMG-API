@@ -1,0 +1,11 @@
+{
+  "changes": [
+    {
+      "type": "add",
+      "path": "/system/wifi/bcmdhd.ko",
+      "src": "files/bcmdhd-rtl8811au.ko",
+      "mode": "644",
+      "stock": "144b5cf07482a7ea44ee82e3b82d0774"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+diff --git a/Makefile b/Makefile
+index 2d53df9..402c33e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -2476,24 +2476,24 @@ rtk_core += \
+ 		core/crypto/rtw_crypto_wrap.o \
+ 		core/rtw_swcrypto.o
+ 
+-$(MODULE_NAME)-y += $(rtk_core)
++bcmdhd-y += $(rtk_core)
+ 
+-$(MODULE_NAME)-$(CONFIG_WAPI_SUPPORT) += core/rtw_wapi.o	\
++bcmdhd-$(CONFIG_WAPI_SUPPORT) += core/rtw_wapi.o	\
+ 					core/rtw_wapi_sms4.o
+ 
+-$(MODULE_NAME)-y += $(_OS_INTFS_FILES)
+-$(MODULE_NAME)-y += $(_HAL_INTFS_FILES)
+-$(MODULE_NAME)-y += $(_PHYDM_FILES)
+-$(MODULE_NAME)-y += $(_BTC_FILES)
+-$(MODULE_NAME)-y += $(_PLATFORM_FILES)
++bcmdhd-y += $(_OS_INTFS_FILES)
++bcmdhd-y += $(_HAL_INTFS_FILES)
++bcmdhd-y += $(_PHYDM_FILES)
++bcmdhd-y += $(_BTC_FILES)
++bcmdhd-y += $(_PLATFORM_FILES)
+ 
+-$(MODULE_NAME)-$(CONFIG_MP_INCLUDED) += core/rtw_mp.o
++bcmdhd-$(CONFIG_MP_INCLUDED) += core/rtw_mp.o
+ 
+ ifeq ($(CONFIG_RTL8723B), y)
+-$(MODULE_NAME)-$(CONFIG_MP_INCLUDED)+= core/rtw_bt_mp.o
++bcmdhd-$(CONFIG_MP_INCLUDED)+= core/rtw_bt_mp.o
+ endif
+ 
+-obj-$(CONFIG_RTL8821AU) := $(MODULE_NAME).o
++obj-$(CONFIG_RTL8821AU) := bcmdhd.o
+ 
+ else
+ 
+diff --git a/os_dep/linux/os_intfs.c b/os_dep/linux/os_intfs.c
+index 8acf5d1..e0780cb 100644
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -383,7 +383,7 @@ MODULE_PARM_DESC(rtw_regd_src, "The default regd source selection, 0:Realtek def
+ #endif
+ 
+ char rtw_country_unspecified[] = {0xFF, 0xFF, 0x00};
+-char *rtw_country_code = rtw_country_unspecified;
++char *rtw_country_code = "US";
+ module_param(rtw_country_code, charp, 0644);
+ MODULE_PARM_DESC(rtw_country_code, "The default country code (in alpha2)");
+ 
+@@ -505,6 +505,19 @@ int rtw_nm = 1;/*noise monitor*/
+ module_param(rtw_nm, int, 0644);
+ #endif
+ 
++/* Stock Mobis Wi-Fi HAL interface: it passes these to the module and reads the MAC from sysfs */
++#define NIRO_PATHLEN 256
++static char iface_name[IFNAMSIZ];
++static char firmware_path[NIRO_PATHLEN];
++static char nvram_path[NIRO_PATHLEN];
++static char clm_path[NIRO_PATHLEN];
++static char mac_address_read[100];
++module_param_string(iface_name, iface_name, IFNAMSIZ, 0644);
++module_param_string(firmware_path, firmware_path, NIRO_PATHLEN, 0644);
++module_param_string(nvram_path, nvram_path, NIRO_PATHLEN, 0644);
++module_param_string(clm_path, clm_path, NIRO_PATHLEN, 0644);
++module_param_string(mac_address_read, mac_address_read, 100, 0644);
++
+ char *ifname = "wlan%d";
+ module_param(ifname, charp, 0644);
+ MODULE_PARM_DESC(ifname, "The default name to allocate for first interface");
+@@ -1834,7 +1847,7 @@ int rtw_ndev_init(struct net_device *dev)
+ 
+ 	RTW_PRINT(FUNC_ADPT_FMT" if%d mac_addr="MAC_FMT"\n"
+ 		, FUNC_ADPT_ARG(adapter), (adapter->iface_id + 1), MAC_ARG(dev->dev_addr));
+-	strscpy(adapter->old_ifname, dev->name, IFNAMSIZ);
++	strlcpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+ 	adapter->old_ifname[IFNAMSIZ - 1] = '\0';
+ 	rtw_adapter_proc_init(dev);
+ 
+@@ -2175,6 +2188,8 @@ int rtw_os_ndev_register(_adapter *adapter, const char *name)
+ #else
+ 	_rtw_memcpy(ndev->dev_addr, adapter_mac_addr(adapter), ETH_ALEN);
+ #endif
++	if (is_primary_adapter(adapter))
++		snprintf(mac_address_read, sizeof(mac_address_read), "%pM", adapter_mac_addr(adapter));
+ 
+ 	/* Tell the network stack we exist */
+ 
+diff --git a/os_dep/linux/rtw_android.c b/os_dep/linux/rtw_android.c
+index 10f8f23..91b6087 100644
+--- a/os_dep/linux/rtw_android.c
++++ b/os_dep/linux/rtw_android.c
+@@ -596,6 +596,39 @@ exit:
+ }
+ #endif /* CONFIG_RTW_MESH_AEK */
+ 
++/* The stock Mobis hostapd sends its Apple device IE as a Broadcom "add_ie" private command */
++static void niro_add_ie(struct net_device *net, const char *cmd)
++{
++	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
++	struct mlme_priv *mlme = &adapter->mlmepriv;
++	char oui[7], data[129], hex[136];
++	u8 ie[72];
++	int pkt, i, n = 2, hi, lo;
++
++	if (sscanf(cmd, "add_ie %d %6s %128s", &pkt, oui, data) != 3 || strlen(oui) != 6 || strlen(data) % 2 || strlen(data) > 128)
++		return;
++	snprintf(hex, sizeof(hex), "%s%s", oui, data);
++	for (i = 0; hex[i] && n < (int)sizeof(ie); i += 2) {
++		hi = hex_to_bin(hex[i]);
++		lo = hex_to_bin(hex[i + 1]);
++		if (hi < 0 || lo < 0)
++			return;
++		ie[n++] = (hi << 4) | lo;
++	}
++	ie[0] = WLAN_EID_VENDOR_SPECIFIC;
++	ie[1] = n - 2;
++	_rtw_memcpy(mlme->vendor_ie[0], ie, n);
++	mlme->vendor_ielen[0] = n;
++	if (pkt == 0)
++		mlme->vendor_ie_mask[0] |= WIFI_BEACON_VENDOR_IE_BIT;
++	else if (pkt == 1)
++		mlme->vendor_ie_mask[0] |= WIFI_PROBERESP_VENDOR_IE_BIT;
++	else if (pkt == 2)
++		mlme->vendor_ie_mask[0] |= WIFI_ASSOCRESP_VENDOR_IE_BIT;
++	RTW_INFO("add_ie: %d bytes, mask 0x%x\n", n, mlme->vendor_ie_mask[0]);
++	update_beacon(adapter, 0xFF, NULL, _TRUE, 0);
++}
++
+ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ {
+ 	#define PRIVATE_COMMAND_MAX_LEN        8192
+@@ -680,6 +713,13 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+ 	RTW_INFO("%s: Android private cmd \"%s\" on %s\n"
+ 		 , __FUNCTION__, command, ifr->ifr_name);
+ 
++	if (strncmp(command, "add_ie ", 7) == 0) {
++		niro_add_ie(net, command);
++		snprintf(command, 3, "OK");
++		bytes_written = 2;
++		goto response;
++	}
++
+ 	cmd_num = rtw_android_cmdstr_to_num(command);
+ 
+ 	switch (cmd_num) {

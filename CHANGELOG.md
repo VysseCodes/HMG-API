@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Mods
+
+- **USB Wi-Fi for wireless CarPlay (`usb-wifi-rtl8811au`), new.** Runs the hotspot on a
+  TP-Link Archer T2U Nano in the USB port, for a head unit whose built-in Wi-Fi never comes
+  up. Tested on a US 2023 Niro EV, firmware 260507. See the mod's README for its limits.
+- **Wireless CarPlay + Android Auto** lists the US Niro EV (`SG2EV`, 260507), using the EV6
+  patch set. It no longer needs a working Wi-Fi chip there, since the USB mod provides one.
+
 ## 1.0.2 (2026-11-04)
 
 ### Fixes

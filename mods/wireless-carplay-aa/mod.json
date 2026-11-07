@@ -31,6 +31,13 @@
       "features": [
         "hmgapi.wifi"
       ]
+    },
+    {
+      "model": [
+        "SG2EV"
+      ],
+      "region": "USA",
+      "firmware": "260507"
     }
   ],
   "parts": [

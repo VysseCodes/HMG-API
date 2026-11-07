@@ -1,0 +1,17 @@
+{
+  "id": "usb-wifi-rtl8811au",
+  "name": "USB Wi-Fi for wireless CarPlay (RTL8811AU)",
+  "version": "1.0.0",
+  "hmgapi": ">=1.0.0",
+  "authors": ["dibble9012"],
+  "license": "AGPL-3.0",
+  "description": "Runs the hotspot for wireless CarPlay on a TP-Link Archer T2U Nano (USB ID 2357:011e) in the USB port, for a head unit whose built-in Wi-Fi never comes up. Replaces the Broadcom Wi-Fi driver with a Realtek one; removing the mod restores it. Turn ADB over USB off before plugging in the adapter, and pull the adapter before turning it back on.",
+  "system": [
+    { "model": ["SG2EV"], "region": "USA", "firmware": "260507" }
+  ],
+  "requires": ["wireless-carplay-aa >=2.1.0"],
+  "services": [
+    { "name": "usbguard", "script": "svc/usbguard.sh", "user": "root", "start": "boot", "restart": true }
+  ],
+  "logs": { "tags": ["WifiHW", "SoftapController", "WifiStateMachine", "hostapd"] }
+}
