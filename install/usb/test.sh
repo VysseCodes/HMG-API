@@ -105,9 +105,9 @@ BEFORE=$(tree)
 mkdir -p $S/HMGAPI/install
 unzip -q "$NZ" 'payload/*' -d $T/pk
 P=$S/HMGAPI/install/payload; mv $T/pk/payload $P
-cp install/common/install.sh install/common/uninstall.sh install/common/lib.sh install/common/stock.txt install/common/app-pending.sh install/common/app-open.sh install/common/hook-check.sh install/common/boot.sh $P/
+cp install/common/install.sh install/common/uninstall.sh install/common/lib.sh install/common/stock.txt install/common/app-pending.sh install/common/app-open.sh install/common/hook-check.sh install/common/boot.sh install/common/wifi-probe.sh $P/
 [ -f "$STOCK" ] || echo "$(md5sum < $R/system/bin/app_process | cut -c1-32) test stock" > $P/stock.txt
-(cd $P && md5sum hmgapid lpatch app_process libhmgapi_hook.so hmgapi-hook.jar HmgApi.apk install.sh uninstall.sh lib.sh stock.txt app-pending.sh app-open.sh hook-check.sh MAPS.md5 > MANIFEST)
+(cd $P && md5sum hmgapid lpatch app_process libhmgapi_hook.so hmgapi-hook.jar HmgApi.apk install.sh uninstall.sh lib.sh stock.txt app-pending.sh app-open.sh hook-check.sh boot.sh wifi-probe.sh MAPS.md5 > MANIFEST)
 TS=$PWD/install/usb/troubleShooter
 
 mv $S/HMGAPI $S/X

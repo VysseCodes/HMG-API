@@ -453,15 +453,76 @@ final class Bridge {
             } catch (Throwable t) {
                 mode = -1;
             }
+            Object conf = k.getMethod("getWifiApConfiguration").invoke(wifi);
+            // iAP2 tells the iPhone the configuration's ConnectivitySSID/ConnectivityPSK
+            // (Iap2Service.OnSendWifiInformation), but the hotspot runs its SSID/preSharedKey,
+            // in mode 2 too (NetworkManagementService.startAccessPoint). Where the two differ
+            // (Korean units: random defaults, and the hotspot settings only edit SSID and
+            // password) the iPhone is sent a network that isn't there and the head unit says
+            // the phone doesn't answer. Make the connectivity pair the hotspot's own SSID and
+            // password, which the owner sets in the hotspot settings; it's stored, so iAP2
+            // reads it. (Starting the hotspot with another configuration would store that
+            // one instead and overwrite the owner's SSID and password.)
+            WifiConfiguration use = syncConnectivity(conf);
+            if (use != conf) {
+                Object ok = null;
+                try {
+                    ok = k.getMethod("setWifiApConfiguration", WifiConfiguration.class).invoke(wifi, use);
+                } catch (Throwable t) {
+                    error("storing the connectivity SSID", t);
+                }
+                log("connectivity SSID and password set to the hotspot's own (" + use.SSID + "), which iAP2 sends -> " + ok);
+                if (!Boolean.TRUE.equals(ok)) {
+                    // not stored: leave the owner's hotspot settings alone (running another SSID
+                    // would make the framework store it over them) and say so; iAP2 still sends
+                    // the old pair, so this session may not connect
+                    use = (WifiConfiguration) conf;
+                    toast(c, "HMG-API: CarPlay's Wi-Fi couldn't be set to the hotspot's name and password,"
+                            + " so wireless CarPlay may not connect. Restart the head unit and try again.");
+                }
+            }
             if (on && mode == 2) {
                 log("hotspot already up (mode 2)");
                 return;
             }
-            Object conf = k.getMethod("getWifiApConfiguration").invoke(wifi);
-            Object r = k.getMethod("setWifiApEnabledForConnectivity", WifiConfiguration.class, boolean.class).invoke(wifi, conf, true);
+            Object r = k.getMethod("setWifiApEnabledForConnectivity", WifiConfiguration.class, boolean.class).invoke(wifi, use, true);
             log("setWifiApEnabledForConnectivity -> " + r + " (was on=" + on + " mode=" + mode + ")");
         } catch (Throwable t) {
             error("ensureHotspot", t);
+        }
+    }
+
+    /** a toast on the head unit's screen (its own toast broadcast) */
+    static void toast(Context c, String m) {
+        try {
+            Intent i = new Intent("com.hkmc.intent.action.TOAST");
+            i.putExtra("com.hkmc.intent.extra.TOAST_MESSAGE", m);
+            i.putExtra("com.hkmc.intent.extra.TOAST_POPUPSHOWING", true);
+            c.sendBroadcast(i);
+        } catch (Throwable t) {
+            error("toast", t);
+        }
+    }
+
+    /**
+     * conf itself when its ConnectivitySSID/ConnectivityPSK (fields of Hyundai's framework,
+     * read by reflection) are missing or already its SSID/preSharedKey, or it has no SSID
+     * or password; otherwise a copy whose connectivity pair is its SSID/preSharedKey.
+     */
+    static WifiConfiguration syncConnectivity(Object o) {
+        if (!(o instanceof WifiConfiguration)) return (WifiConfiguration) o;
+        WifiConfiguration conf = (WifiConfiguration) o;
+        try {
+            Class<?> wc = WifiConfiguration.class;
+            java.lang.reflect.Field fs = wc.getField("ConnectivitySSID"), fp = wc.getField("ConnectivityPSK");
+            if (conf.SSID == null || conf.SSID.isEmpty() || conf.preSharedKey == null || conf.preSharedKey.isEmpty()) return conf;
+            if (conf.SSID.equals(fs.get(conf)) && conf.preSharedKey.equals(fp.get(conf))) return conf;
+            WifiConfiguration c = (WifiConfiguration) wc.getConstructor(WifiConfiguration.class).newInstance(conf);
+            fs.set(c, conf.SSID);
+            fp.set(c, conf.preSharedKey);
+            return c;
+        } catch (Throwable t) {
+            return conf;   // a framework without the connectivity pair: nothing to keep in step
         }
     }
 

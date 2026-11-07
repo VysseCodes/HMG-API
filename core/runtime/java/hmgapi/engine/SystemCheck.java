@@ -36,7 +36,8 @@ import java.util.TreeSet;
  * must have (or, with "!", must not); features are the <feature name> entries
  * in /system/etc/permissions plus HMG-API's own: hmgapi.wifi (a Wi-Fi chip
  * answered on SDIO, or its driver and firmware are in /system/wifi on a car with
- * the stock hotspot; the wifi.module feature file is there even without one).
+ * the stock hotspot; the wifi.module feature file is there even without one; on a
+ * unit with no Wi-Fi switch, the boot steps' wifi-probe.sh turns Wi-Fi on once to look).
  *
  * "system" may also be a list of such objects: any one of them is enough, for
  * a mod that supports e.g. the US EV6 on 260507 and the Canadian Ioniq 5 on 260206.

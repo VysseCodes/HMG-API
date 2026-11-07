@@ -1,7 +1,7 @@
 {
   "id": "wireless-carplay-aa",
   "name": "Wireless CarPlay + Android Auto",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "hmgapi": ">=1.0.0",
   "authors": [
     "VysseCodes"
@@ -31,11 +31,27 @@
       "features": [
         "hmgapi.wifi"
       ]
+    },
+    {
+      "model": [
+        "DL3HEV"
+      ],
+      "region": "KOR",
+      "firmware": "260902",
+      "features": [
+        "hmgapi.wifi"
+      ]
     }
   ],
   "parts": [
     {
       "id": "projection"
+    },
+    {
+      "id": "hotspot",
+      "system": {
+        "region": "KOR"
+      }
     },
     {
       "id": "tbt",

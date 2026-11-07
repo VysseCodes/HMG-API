@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Korean cars have a Wi-Fi chip after all.** Korean firmware has no Wi-Fi switch, so
+  the chip was never powered and HMG-API said "no Wi-Fi chip" (every Korean Car Report so
+  far). HMG-API now turns Wi-Fi on once for a few seconds to look, then off again, and
+  remembers the answer (checked on a K5 Hybrid, 260902: a BCM4359).
+
+### Mods
+
+- **Wireless CarPlay 2.2.0: Korean K5 Hybrid (DL3HEV, 260902).** Wireless CarPlay, and
+  turn-by-turn on the cluster from Apple Maps and Naver Map (Naver Map: turn on HUD in its
+  CarPlay settings). The hotspot keeps the name and password set in its settings, and the
+  iPhone is given those. Turns at angles the US build didn't list get the nearest arrow,
+  the cluster goes back to the compass when guidance ends, and DiPO's "Reading USB"
+  message no longer shows over wireless CarPlay.
+
 ## 1.0.2 (2026-11-04)
 
 ### Fixes

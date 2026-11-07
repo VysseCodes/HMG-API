@@ -4,7 +4,8 @@
     "CVEV.CAN.": "ev6_ca",
     "NEEV.USA.": "neev",
     "NEEV.CAN.": "neev_ca",
-    "NEEV23.USA.": "neev"
+    "NEEV23.USA.": "neev",
+    "DL3HEV.KOR.": "dl3hev"
   },
   "stock": "patches/{set}/stock",
   "expect": "patches/{set}/expect",
@@ -17,6 +18,13 @@
       "comment": [
         "-/system/etc/permissions/com.hkmc.software.wifihotspot.xml"
       ]
+    },
+    {
+      "type": "add",
+      "path": "/system/etc/permissions/com.hkmc.software.wifihotspot.xml",
+      "src": "files/com.hkmc.software.wifihotspot.xml",
+      "mode": "644",
+      "part": "hotspot"
     },
     {
       "type": "prop",

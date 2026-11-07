@@ -89,6 +89,7 @@ public final class Dipo {
         }
         if (tbt) turnByTurn();
         if (bridge) bridge();
+        if (bridge) quietUsbMessage(a);
         if (!tbt && !bridge) return;
         Intent i = new Intent(IAP2_ACTION);
         boolean bound = a.context.bindService(i, new ServiceConnection() {
@@ -170,14 +171,61 @@ public final class Dipo {
         }
     }
 
+    /**
+     * DiPO shows "Reading USB" (msg_reading_usb) on every iAP2 connect, assuming an iPhone
+     * on USB; over the Bluetooth bridge and wireless CarPlay that's wrong. Korean K5 DiPO
+     * (260902): com.daudio.app.dipo.k.d.lo() shows it. There's no hook point for it yet, so
+     * it's hooked by name, and only where that method's resource really is msg_reading_usb
+     * (another build's lo() is left alone). Skipped only while a bridge session or wireless
+     * CarPlay runs; a wired iPhone still gets the message.
+     */
+    static void quietUsbMessage(LoadedApp a) {
+        try {
+            int res = 0x7f050001;
+            if (!"msg_reading_usb".equals(a.context.getResources().getResourceEntryName(res))) return;
+            Class<?> k = Class.forName("com.daudio.app.dipo.k.d", false, a.classLoader);
+            java.lang.reflect.Method lo = k.getDeclaredMethod("lo");
+            if (lo.getReturnType() != void.class) return;
+            hmgapi.hook.Hooks.findAndHookMethod(k, "lo", new MethodHook() {
+                @Override
+                protected void beforeHookedMethod(Param p) {
+                    if (Bridge.sSession || Bridge.sCpWireless) p.setResult(null);
+                }
+            });
+            log("bridge: \"Reading USB\" message off for wireless sessions (DiPO k.d.lo)");
+        } catch (Throwable t) {
+            // another DiPO build: its message stays
+        }
+    }
+
+    /** asks the phone for route guidance updates (HMG-API's own call: DiPO's stop hook ignores it) */
+    static void startRouteGuidance(int component) {
+        IIap2Service s = iap2;
+        if (s == null) return;
+        OWN.set(Boolean.TRUE);
+        try {
+            log("CarPlay: route guidance updates asked for (session " + component + ") -> "
+                    + s.Iap2SvcStartRouteGuidanceUpdate(RG_COMPONENTS, true, true));
+        } catch (Throwable t) {
+            error("CarPlay: route guidance start", t);
+        } finally {
+            OWN.remove();
+        }
+    }
+
     /** after a source change: Stop, then Start, so the phone sends its whole current state (the build's HmgApiRgRestart) */
     static void restartRouteGuidance() {
         IIap2Service s = iap2;
         if (s == null) return;
         OWN.set(Boolean.TRUE);
         try {
-            s.Iap2SvcStopRouteGuidanceUpdate(RG_COMPONENTS);
-            Thread.sleep(200);
+            // Korean units: no Stop first. On a K5 the iPhone gave up turn-by-turn (DiPO mode
+            // 1 -> 0) the moment a Stop went out as Naver Map took over from Apple Maps, and
+            // never took it back; a Start alone has the phone send its state again.
+            if (!CpTurns.KOREA) {
+                s.Iap2SvcStopRouteGuidanceUpdate(RG_COMPONENTS);
+                Thread.sleep(200);
+            }
             s.Iap2SvcStartRouteGuidanceUpdate(RG_COMPONENTS, true, true);
         } catch (Throwable t) {
             // the session went away meanwhile
@@ -188,8 +236,23 @@ public final class Dipo {
 
     /** HMG-API's iAP2 listener for route guidance: everything goes to CpTurns on its thread */
     static final class RgListener extends IIap2Listener.Stub {
+        /**
+         * A session is up: ask the phone for its route guidance now. DiPO asks only on its own
+         * paths (e/b.M(), from stopOemNaviGuide), which a CarPlay app starting guidance while
+         * the car's navigation has no route doesn't take (seen on a Korean K5: DiPO in
+         * turn-by-turn mode, no updates asked for, the cluster spinning). The phone sends
+         * nothing until it guides, so asking early costs nothing.
+         */
         @Override
-        public void connected(int component, String serial) {}
+        public void connected(final int component, String serial) {
+            if (component == 2 || turnsHandler == null) return;
+            turnsHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    startRouteGuidance(component);
+                }
+            }, 1500);
+        }
 
         @Override
         public void disconnected(final int component) {

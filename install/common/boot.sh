@@ -6,7 +6,8 @@
 # Output: /data/hmgapi/boot.log.
 #
 # The app's installer if the app is still waiting; hook-check.sh, which puts the boot
-# hook back in a boot script something else rewrote; with NEMESIS, two minutes later,
+# hook back in a boot script something else rewrote; wifi-probe.sh, which finds out
+# once whether a never-powered Wi-Fi chip is there; with NEMESIS, two minutes later,
 # engine nemesis-sync, so NEMESIS lists what HMG-API has installed. If an engine apply
 # was cut off (or a trial is waiting), roll it back, and restart once if anything was
 # rolled back (apps may already have loaded the files).
@@ -23,6 +24,7 @@ echo "$(date) boot"
 if [ -s $D/state/binds.txt ]; then $H binds > $D/binds.log 2>&1 & fi
 if [ -f $D/public/HmgApi.apk ]; then sh $D/app-pending.sh </dev/null >/dev/null 2>&1 & fi
 if [ -f $D/hook-check.sh ]; then sh $D/hook-check.sh </dev/null >/dev/null 2>&1 & fi
+if [ -f $D/wifi-probe.sh ]; then sh $D/wifi-probe.sh </dev/null >/dev/null 2>&1 & fi
 if [ -x /system/xbin/nemesis ]; then (sleep 120; $H engine nemesis-sync) </dev/null >$D/nemesis-sync.log 2>&1 & fi
 if [ -f $D/state/journal.json ]; then
     $H engine recover > $D/recover.log 2>&1

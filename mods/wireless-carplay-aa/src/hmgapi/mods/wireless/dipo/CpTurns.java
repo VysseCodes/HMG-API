@@ -234,12 +234,72 @@ final class CpTurns {
     void disconnected() {
         reset();
         hudBlank();
+        turnBlank();
         source = null;
     }
 
     /** route guidance stopped (DiPO e/u.nS: the car's navigation took turn-by-turn back, or state 0) */
     void stop() {
+        // Korean units: the car's navigation taking the cluster (DiPO mode 2) has already sent
+        // its first turn, which a blank from here would wipe (it resends only on changes), so
+        // leave the cluster to it
+        if (KOREA && dipoTurnByTurn() == 2) {
+            shown = false;
+            return;
+        }
         hudBlank();
+        turnBlank();
+    }
+
+    /** the last turn-by-turn trace line (logged only when it changes, so the log isn't flooded) */
+    String lastTrace;
+
+    void trace(String m) {
+        if (m.equals(lastTrace)) return;
+        lastTrace = m;
+        Dipo.log("CarPlay TBT: " + m);
+    }
+
+    /** the phone's turn is what the cluster shows now (set when one is sent, cleared by a blank or the car taking over) */
+    boolean shown;
+
+    /**
+     * Korean units: the phone's last turn, crossroad and destination stay on the cluster
+     * after guidance ends, because the car's navigation, when it isn't guiding, never sends
+     * a turn of its own while the phone holds turn-by-turn. Send the display type the
+     * navigation sends while it isn't guiding (8: the compass; its power-off blank, type 1,
+     * leaves the cluster spinning)
+     * and empty names, only while the phone's turn is the one shown (never over the car
+     * navigation's). Elsewhere the car's navigation takes the cluster back with its own
+     * turn, so nothing is sent there.
+     */
+    void turnBlank() {
+        if (!KOREA || !shown) return;
+        shown = false;
+        cluster.tbtInfo(8, 0, 0f, 0f, 0, 0, 0, 0, 0);
+        cluster.crossroadName("");
+        cluster.destinationName(0, "");
+    }
+
+    /** DiPO's turn-by-turn owner now (DiPOMode.getTurnByTurn: 0 none, 1 phone, 2 car), -1 if unknown */
+    int dipoTurnByTurn() {
+        try {
+            Object dipo = context.getSystemService("dipo");
+            Object mode = dipo.getClass().getMethod("getCurrentDiPOMode").invoke(dipo);
+            return (Integer) mode.getClass().getMethod("getTurnByTurn").invoke(mode);
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    static final boolean KOREA = String.valueOf(prop("ro.build.product")).contains(".KOR.");
+
+    static String prop(String k) {
+        try {
+            return (String) Class.forName("android.os.SystemProperties").getMethod("get", String.class).invoke(null, k);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** forget every component's state and maneuvers (DiPO e/u.nT) */
@@ -292,9 +352,15 @@ final class CpTurns {
         }
         if (u.state == 6) cluster.destinationName(0, u.destination);
         LinkedHashMap<Integer, Maneuver> m = maneuvers.get(id);
-        if (m == null || list == null) return;
+        if (m == null || list == null) {
+            trace("component " + id + " state " + u.state + ": no " + (m == null ? "maneuvers yet" : "current maneuver list"));
+            return;
+        }
         Maneuver x = m.get(list[0]);
-        if (x == null) return;
+        if (x == null) {
+            trace("component " + id + " state " + u.state + ": maneuver " + list[0] + " not received (have " + m.keySet() + ")");
+            return;
+        }
         int unit;
         switch (u.nextUnits) {
             case 0: unit = Cluster.UNIT_KM; break;
@@ -305,8 +371,13 @@ final class CpTurns {
         }
         int icon = icon(x.type, x.side, x.junction, x.exit, u.state);
         cluster.crossroadName(x.afterRoad);
-        if (icon == 0) return;
+        if (icon == 0) {
+            trace("component " + id + " state " + u.state + ": maneuver type " + x.type + " (side " + x.side + ", junction " + x.junction + ", exit " + x.exit + ") has no cluster icon");
+            return;
+        }
         cluster.tbtInfo(icon, 0, 0f, dist, 0, 0, unit, 0, 0);
+        trace("component " + id + " state " + u.state + ": turn icon " + icon + " (maneuver type " + x.type + ", side " + x.side + ", junction " + x.junction + ", exit " + x.exit + ") sent, DiPO turn-by-turn " + dipoTurnByTurn());
+        shown = true;
         sendHud(icon, id, u);
         sendHudDist(dist, unit);
         sendTrip(u);
@@ -319,6 +390,40 @@ final class CpTurns {
      * the turn-by-turn build maps them (0: nothing to show).
      */
     static int icon(int type, int side, int junction, int exit, int state) {
+        int i = exactIcon(type, side, junction, exit, state);
+        return i != 0 ? i : nearIcon(type, side, exit);
+    }
+
+    /**
+     * When the build's exact angles don't match (apps send other exit angles: a K5 got a
+     * Naver Map right turn the build had no icon for, and the cluster showed nothing), the
+     * nearest plain icon by angle: left 69 sharp / 70 / 71 slight, right 66 slight / 67 /
+     * 68 sharp, 65 straight, 72/73 U-turn. Exit angle 0 on a turn means none was given.
+     */
+    static int nearIcon(int type, int side, int exit) {
+        switch (type) {
+            case 1:
+            case 47:
+            case 49:
+                if (exit == 0) return 70;
+                exit = -Math.abs(exit);
+                return exit <= -105 ? 69 : exit >= -75 ? 71 : 70;
+            case 2:
+            case 48:
+            case 50:
+                if (exit == 0) return 67;
+                exit = Math.abs(exit);
+                return exit >= 105 ? 68 : exit <= 75 ? 66 : 67;
+            case 3:
+                return 65;
+            case 4:
+                return side == 1 ? 73 : 72;
+            default:
+                return 0;
+        }
+    }
+
+    static int exactIcon(int type, int side, int junction, int exit, int state) {
         switch (type) {
             case 1:   // left turn
                 if (junction == 0 && exit == -120) return 69;

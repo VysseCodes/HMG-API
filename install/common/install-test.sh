@@ -49,12 +49,12 @@ chmod 755 $R/system/xbin/nemesis
 BEFORE=$(tree)
 # the payload's binaries, with this tree's scripts (so a script edit needs no rebuild)
 P=$T/payload; cp -r $PL $P
-cp install/common/install.sh install/common/uninstall.sh install/common/lib.sh install/common/stock.txt install/common/app-pending.sh install/common/app-open.sh install/common/hook-check.sh install/common/boot.sh $P/
+cp install/common/install.sh install/common/uninstall.sh install/common/lib.sh install/common/stock.txt install/common/app-pending.sh install/common/app-open.sh install/common/hook-check.sh install/common/boot.sh install/common/wifi-probe.sh $P/
 rm -rf $P/nemesis; mkdir -p $P/nemesis/mod $P/nemesis/bin
 cp -r install/nemesis/scripts $P/nemesis/scripts; cp -r install/nemesis/mod/scripts $P/nemesis/mod/scripts
 cp install/nemesis/bin/open.sh install/nemesis/bin/start.sh $P/nemesis/bin/; cp install/nemesis/conflicts.txt $P/nemesis/
 [ -f "$STOCK" ] || echo "$(md5sum < $R/system/bin/app_process | cut -c1-32) test stock" > $P/stock.txt
-(cd $P && md5sum hmgapid lpatch app_process libhmgapi_hook.so hmgapi-hook.jar HmgApi.apk install.sh uninstall.sh lib.sh stock.txt app-pending.sh app-open.sh hook-check.sh boot.sh MAPS.md5 > MANIFEST)
+(cd $P && md5sum hmgapid lpatch app_process libhmgapi_hook.so hmgapi-hook.jar HmgApi.apk install.sh uninstall.sh lib.sh stock.txt app-pending.sh app-open.sh hook-check.sh boot.sh wifi-probe.sh MAPS.md5 > MANIFEST)
 
 # refusals first: nothing may change
 cp $R/system/bin/app_process $T/real; echo x >> $R/system/bin/app_process
@@ -99,6 +99,8 @@ check "a copy of the app kept, readable by the package manager" "-rw-r--r--" "$(
 check "open.sh kept" yes "$([ -f $R/data/hmgapi/open.sh ] && echo yes)"
 check "hook-check.sh kept, root only" "-rwx------" "$(ls -l $R/data/hmgapi/hook-check.sh | cut -c1-10)"
 has "boot.sh: puts a rewritten boot script's block back (hook-check.sh)" "hook-check.sh" "$(cat $R/data/hmgapi/boot.sh)"
+check "wifi-probe.sh kept, root only" "-rwx------" "$(ls -l $R/data/hmgapi/wifi-probe.sh | cut -c1-10)"
+has "boot.sh: looks for a never-powered Wi-Fi chip (wifi-probe.sh)" "wifi-probe.sh" "$(cat $R/data/hmgapi/boot.sh)"
 check "HMG-API's NEMESIS scripts and conflicts kept, for engine nemesis-sync" yes "$([ -f $R/data/hmgapi/nemesis/scripts/preuninstall.sh ] && [ -f $R/data/hmgapi/nemesis/mod/scripts/preuninstall.sh ] && [ -f $R/data/hmgapi/nemesis/conflicts.txt ] && echo yes)"
 has "boot.sh: engine nemesis-sync when NEMESIS is there" "engine nemesis-sync" "$(cat $R/data/hmgapi/boot.sh)"
 check "hook maps installed" yes "$([ -f $R/data/hmgapi/maps/kia/ev6/usa/260507/car.json ] && [ -s $R/data/hmgapi/maps/points.txt ] && echo yes)"
@@ -162,7 +164,7 @@ has "uninstall finishes" "HMG-API uninstalled" "$out"
 check "... NEMESIS: the mod's package unlisted first, then HMG-API's, list-only" "nemesis uninstall hmgapi.demo sync=1|nemesis uninstall hmgapi sync=1" "$(tr '\n' '|' < $T/nemesis.log | sed 's/|$//')"
 check "... neither listed any more (the old script copy refreshed first)" "" "$(ls $R/data/nemesis/apps)"
 has "... said" "NEMESIS: hmgapi unlisted" "$out"
-check "the app's copy, open.sh, hook-check.sh and boot.sh gone" no "$([ -e $R/data/hmgapi/HmgApi.apk ] || [ -e $R/data/hmgapi/open.sh ] || [ -e $R/data/hmgapi/hook-check.sh ] || [ -e $R/data/hmgapi/boot.sh ] && echo yes || echo no)"
+check "the app's copy, open.sh, hook-check.sh, boot.sh and wifi-probe.sh gone" no "$([ -e $R/data/hmgapi/HmgApi.apk ] || [ -e $R/data/hmgapi/open.sh ] || [ -e $R/data/hmgapi/hook-check.sh ] || [ -e $R/data/hmgapi/boot.sh ] || [ -e $R/data/hmgapi/wifi-probe.sh ] && echo yes || echo no)"
 check "/system byte-identical to stock" "$BEFORE" "$(tree)"
 check "settings kept without --purge" yes "$([ -f $R/data/hmgapi/settings/hmgapi.json ] && echo yes)"
 check "hooks off" no "$([ -f $R/data/hmgapi/hook/enable ] && echo yes || echo no)"

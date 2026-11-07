@@ -69,4 +69,79 @@ kill $sp 2>/dev/null; wait $sp 2>/dev/null || true
 echo 999999 > "$D/state/hook-check.pid"
 HC > /dev/null
 check "hook-check: a stale lock (after a restart) doesn't stop it" "1" "$(grep -c 'HMGAPI_HOOK begin' "$T/system/etc/install-recovery.sh")"
+
+# wifi-probe.sh at boot: a chip nobody turned on (Korean units have no Wi-Fi switch) only
+# shows on SDIO while Wi-Fi is on. Stand-ins: svc (Wi-Fi on sets wifi_on and brings the chip
+# up if FAKE_CHIP; FAKE_REFUSE: nothing happens), settings (wifi_on), getprop (Android up),
+# sleep (instant; FAKE_LATE: the chip shows up meanwhile); calls go to wifi.log.
+B=$T/wbin; mkdir -p "$B" "$D/public" "$D/state" "$T/system/wifi" "$T/sys/bus/sdio/devices" "$T/system/etc/permissions"
+S=$T/sys/bus/sdio/devices/mmc1:0001:1
+cat > "$B/svc" <<EOS
+#!/bin/sh
+echo "svc \$*" >> "$T/wifi.log"
+[ -n "\$FAKE_REFUSE" ] && exit 0
+if [ "\$2" = enable ]; then echo 1 > "$T/wifi_on"; [ -n "\$FAKE_CHIP" ] && mkdir -p "$S"; fi
+if [ "\$2" = disable ]; then echo 0 > "$T/wifi_on"; rm -rf "$S"; fi
+exit 0
+EOS
+printf '#!/bin/sh\ncat "%s/wifi_on" 2>/dev/null || echo 0\n' "$T" > "$B/settings"
+printf '#!/bin/sh\necho 1\n' > "$B/getprop"
+printf '#!/bin/sh\n[ -n "$FAKE_LATE" ] && mkdir -p "%s"\nexit 0\n' "$S" > "$B/sleep"
+chmod +x "$B"/*
+WP() { env PATH="$B:$PATH" ROOT="$T" WIFI_PROBE_WAIT=0 $SH "$PWD/wifi-probe.sh" "$@" 2>&1; }
+wlog() { cat "$T/wifi.log" 2>/dev/null | tr '\n' ';'; : > "$T/wifi.log"; }
+yn() { [ -e "$1" ] && echo yes || echo no; }
+reset() { rm -f "$D/public/wifi-chip" "$D/state/wifi-probe.txt" "$D/state/wifi-probe.on" "$D/state/wifi-probe.pid" "$D/install.log" "$T/wifi_on" "$T/system/etc/permissions/"*; rm -rf "$T/sys/bus/sdio/devices/"*; : > "$T/wifi.log"; }
+reset
+WP > /dev/null
+check "wifi-probe: no driver in /system/wifi: not asked" "|no" "$(wlog)|$(yn "$D/public/wifi-chip")"
+: > "$T/system/wifi/bcmdhd.ko"
+(FAKE_CHIP=1; export FAKE_CHIP; WP > /dev/null)
+check "wifi-probe: chip there, Wi-Fi off: on, then off again" "svc wifi enable;svc wifi disable;" "$(wlog)"
+check "... remembered for SystemCheck (public/wifi-chip, readable by apps)" "-rw-r--r--" "$(ls -l "$D/public/wifi-chip" | cut -c1-10)"
+check "... said in install.log" "1" "$(grep -c 'Wi-Fi chip found' "$D/install.log")"
+check "... Wi-Fi and the chip off again, no marker or lock left" "0|no|no|no" "$(cat "$T/wifi_on")|$(yn "$S")|$(yn "$D/state/wifi-probe.on")|$(yn "$D/state/wifi-probe.pid")"
+(FAKE_CHIP=1; export FAKE_CHIP; WP > /dev/null)
+check "wifi-probe: known: not asked again" "" "$(wlog)"
+reset
+WP > /dev/null
+check "wifi-probe: no chip: Wi-Fi on and off, nothing remembered" "svc wifi enable;svc wifi disable;|no" "$(wlog)|$(yn "$D/public/wifi-chip")"
+check "... the answer kept and said" "none|1" "$(sed 's/.* //' "$D/state/wifi-probe.txt")|$(grep -c 'no Wi-Fi chip' "$D/install.log")"
+WP > /dev/null
+check "wifi-probe: asked once: not again at the next boot" "" "$(wlog)"
+(FAKE_CHIP=1; export FAKE_CHIP; WP --again > /dev/null)
+check "wifi-probe --again: asks again" "svc wifi enable;svc wifi disable;|yes" "$(wlog)|$(yn "$D/public/wifi-chip")"
+reset
+(FAKE_REFUSE=1; export FAKE_REFUSE; WP > /dev/null)
+check "wifi-probe: Wi-Fi didn't come on: no answer kept, asked again next time" "no|1" "$(yn "$D/state/wifi-probe.txt")|$(grep -c "didn't come on" "$D/install.log")"
+reset
+echo 1 > "$T/wifi_on"
+WP > /dev/null
+check "wifi-probe: the owner has Wi-Fi on: left alone, no answer, no lock" "|no|no" "$(wlog)|$(yn "$D/state/wifi-probe.txt")|$(yn "$D/state/wifi-probe.pid")"
+reset
+printf '<permissions><feature name="com.hkmc.software.wifihotspot"/></permissions>\n' > "$T/system/etc/permissions/hotspot.xml"
+(FAKE_CHIP=1; export FAKE_CHIP; WP > /dev/null)
+check "wifi-probe: a car with the stock hotspot (SystemCheck counts its driver): not asked" "|no" "$(wlog)|$(yn "$D/state/wifi-probe.pid")"
+reset
+mkdir -p "$S"
+WP > /dev/null
+check "wifi-probe: chip already on SDIO: remembered, Wi-Fi not touched" "|yes" "$(wlog)|$(yn "$D/public/wifi-chip")"
+reset
+(FAKE_LATE=1; export FAKE_LATE; WP > /dev/null)
+check "wifi-probe: chip turned on by something else while waiting: remembered, Wi-Fi not touched" "|yes" "$(wlog)|$(yn "$D/public/wifi-chip")"
+reset
+# cut off at power-off with Wi-Fi on: wifi_on stays 1, WifiService turns it on at the next boot
+: > "$D/state/wifi-probe.on"; echo 1 > "$T/wifi_on"; mkdir -p "$S"
+WP > /dev/null
+check "wifi-probe: a run cut off with Wi-Fi on: turned off again, chip remembered" "svc wifi disable;|0|yes|no" "$(wlog)|$(cat "$T/wifi_on")|$(yn "$D/public/wifi-chip")|$(yn "$D/state/wifi-probe.on")"
+check "... said in install.log" "1" "$(grep -c 'Wi-Fi turned off again' "$D/install.log")"
+reset
+echo $$ > "$D/state/wifi-probe.pid"   # a lock left by a process that's gone (or another pid)
+(FAKE_CHIP=1; export FAKE_CHIP; WP > /dev/null)
+check "wifi-probe: a stale lock doesn't stop it" "svc wifi enable;svc wifi disable;" "$(wlog)"
+reset
+rm "$D/installed.txt"
+(FAKE_CHIP=1; export FAKE_CHIP; WP > /dev/null)
+check "wifi-probe: HMG-API not installed: nothing" "" "$(wlog)"
+echo "version 1.0.0" > "$D/installed.txt"
 exit $fail

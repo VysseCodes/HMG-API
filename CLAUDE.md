@@ -26,7 +26,7 @@ Owners get to decide for their own units. Follow these by default. If the user a
 ## Facts
 
 - Gen5W is only in navigation trims; non-navigation trims have a "Display Audio" head unit (e.g. Display Audio Gen2V on the Tucson), unsupported and absent from the update catalogue.
-- Korea: no Korean car confirmed working (every unit checked had no Wi-Fi hardware), so Korean cars are on no list; reports are still welcome.
+- Korea: no Korean car confirmed working, so Korean cars are on no list; reports are still welcome. "No Wi-Fi hardware" on Korean units came from HMG-API's own check: Korean firmware has `wifi.module` but no `wifihotspot` feature and no Wi-Fi switch, so the chip is never powered and never shows on SDIO. A KOR K5 Hybrid (DL3HEV 260902) has a BCM4359 (`02d0:4359`) that loads and brings up `wlan0` once Wi-Fi is turned on (`svc wifi enable`); `wifi-probe.sh` (boot steps) now does that once and records the answer.
 
 ## Layout
 

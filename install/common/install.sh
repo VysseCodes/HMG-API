@@ -165,7 +165,7 @@ rm -f "$D/hook/disable"
         echo "file $(sum "$ROOT$f") $f"
     done
 } > "$D/installed.txt"
-cp "$P/uninstall.sh" "$P/lib.sh" "$P/stock.txt" "$P/app-pending.sh" "$P/hook-check.sh" "$P/boot.sh" "$D/" && chmod 700 "$D/uninstall.sh" "$D/app-pending.sh" "$D/hook-check.sh" "$D/boot.sh"
+cp "$P/uninstall.sh" "$P/lib.sh" "$P/stock.txt" "$P/app-pending.sh" "$P/hook-check.sh" "$P/boot.sh" "$P/wifi-probe.sh" "$D/" && chmod 700 "$D/uninstall.sh" "$D/app-pending.sh" "$D/hook-check.sh" "$D/boot.sh" "$D/wifi-probe.sh"
 # open.sh (NEMESIS Manager's Launch, adb) installs the app from this copy if it's missing, then opens it
 cp "$P/app-open.sh" "$D/open.sh" && chmod 700 "$D/open.sh" || fail "keep open.sh"
 cp "$P/HmgApi.apk" "$D/HmgApi.apk" && chmod 644 "$D/HmgApi.apk" || fail "keep a copy of the app"
@@ -229,4 +229,6 @@ if [ "$HMGAPI_FROM_NEMESIS" != 1 ] && [ -x "$ROOT/system/xbin/nemesis" ]; then
         log "$r"
     fi
 fi
+# a Wi-Fi chip no stock switch ever turned on: look now (the boot steps don't run again this boot)
+[ -n "$ROOT" ] || /system/bin/hmgapid sh "sh /data/hmgapi/wifi-probe.sh </dev/null >/dev/null 2>&1 &" >/dev/null 2>&1
 log "HMG-API $VERSION installed. Restart the head unit to turn it on."
