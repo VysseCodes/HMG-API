@@ -7,6 +7,11 @@
 - **The head unit no longer restarts at car start when a car sends Digital Key data.** The
   vehicle service answered the car's `out` array callbacks without the array, which crashed
   system_server. This could happen with any mod that reads the car (US Niro EV 260507).
+- **Wireless CarPlay no longer drops about once a minute** (#85, US Ioniq 5). At the
+  start of a session DiPO disconnected the phone's Bluetooth, as it does for wired
+  CarPlay, and some iPhones then ended the wireless session. The wireless mod now keeps
+  Bluetooth up while wireless CarPlay runs (`persist.ev6.cpwl.keepbt=0` gives DiPO's
+  way back). Needs an HMG-API whose maps have the hook point.
 
 ## 1.0.2 (2026-11-04)
 
